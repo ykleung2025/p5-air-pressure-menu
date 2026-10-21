@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>空氣的特性・大氣壓力</title>
+<style>
+:root{
+  --navy:#0d2b52;
+  --blue:#1668c1;
+  --blue-light:#2b8ce0;
+  --sky-soft:#e6f3ff;
+  --ink:#12263a;
+  --muted:#5a7086;
+  --line:#cfe0f2;
+  --ok:#0f7a56;
+  --ok-bg:#e3f7ee;
+  --bad:#b3261e;
+  --bad-bg:#fdeceb;
+  --warn:#8a5200;
+  --warn-bg:#fdf1da;
+  --radius:22px;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0;
+  font-family:"PingFang HK","PingFang TC","Microsoft JhengHei","Noto Sans TC",system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:18px;
+  line-height:1.65;
+  color:var(--ink);
+  background:linear-gradient(180deg,#dbeaf9 0%,#eef5fc 360px,#eef5fc 100%);
+  -webkit-text-size-adjust:100%;
+  -webkit-tap-highlight-color:transparent;
+}
+button{font-family:inherit;font-size:18px;cursor:pointer;border:none;background:none;color:inherit;}
+
+/* ---------- 版面 ---------- */
+.page{display:none;max-width:1040px;margin:0 auto;padding:20px 18px 72px;}
+.page.active{display:block;}
+
+.topbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
+.topbar h1{font-size:clamp(20px,2.4vw,26px);margin:0;color:var(--navy);flex:1 1 200px;}
+
+.steps{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;}
+.step-dot{
+  flex:1 1 0;min-width:58px;text-align:center;font-size:16px;font-weight:700;
+  background:#dbe8f6;color:#4a6480;border-radius:12px;padding:10px 4px;
+  transition:background .18s ease,color .18s ease;
+}
+.step-dot.on{background:var(--blue);color:#fff;}
+.step-dot.done{background:#a8d5f7;color:#0d3c68;}
+
+.card{
+  background:#fff;border-radius:var(--radius);padding:24px;
+  box-shadow:0 10px 28px rgba(13,43,82,.10);
+  border:1px solid #e3eef9;
+}
+.step{display:none;}
+.step.active{display:block;animation:fade .25s ease;}
+@keyframes fade{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+
+.card h2{font-size:22px;color:var(--navy);margin:0 0 8px;}
+.card h3{font-size:19px;color:#173e66;margin:24px 0 12px;}
+.lead{font-size:19px;font-weight:700;color:#173e66;margin:0 0 16px;}
+.hint{color:var(--muted);font-size:17px;font-weight:600;}
+.footnote{text-align:center;color:var(--muted);font-size:17px;margin-top:28px;}
+
+/* ---------- 按鈕 ---------- */
+.btn{
+  min-height:56px;padding:12px 26px;border-radius:16px;
+  font-size:19px;font-weight:800;
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  transition:transform .12s ease,box-shadow .12s ease,background .12s ease;
+}
+.btn:active{transform:scale(.98);}
+.btn.primary{
+  background:linear-gradient(180deg,var(--blue-light),var(--blue));
+  color:#fff;box-shadow:0 6px 16px rgba(22,104,193,.30);
+}
+.btn.primary:disabled{background:#b9cbdd;color:#fff;box-shadow:none;cursor:not-allowed;}
+.btn.ghost{
+  background:#fff;color:var(--blue);border:2px solid var(--line);
+  font-weight:700;min-height:48px;padding:8px 18px;font-size:17px;
+}
+.btn.ghost:hover{background:var(--sky-soft);}
+
+/* ---------- 選項 ---------- */
+.option-list{display:flex;flex-direction:column;gap:12px;}
+.opt{
+  display:block;width:100%;text-align:left;
+  background:#fff;border:2px solid var(--line);border-radius:16px;
+  padding:16px 18px;min-height:58px;
+  font-size:19px;font-weight:700;color:var(--ink);
+  transition:border-color .12s ease,background .12s ease,box-shadow .12s ease;
+}
+.opt:hover{border-color:#9cc8ee;background:#f7fbff;}
+.opt.selected{
+  border-color:var(--blue);background:var(--sky-soft);
+  box-shadow:0 0 0 3px rgba(22,104,193,.15);
+}
+.opt.selected::after{content:"✓";float:right;color:var(--blue);font-weight:900;}
+
+.chip-list{display:flex;flex-wrap:wrap;gap:10px;}
+.chip{
+  background:#fff;border:2px solid var(--line);border-radius:999px;
+  padding:12px 20px;min-height:50px;
+  font-size:18px;font-weight:700;
+  display:inline-flex;align-items:center;gap:8px;
+  transition:border-color .12s ease,background .12s ease;
+}
+.chip:hover{border-color:#9cc8ee;background:#f7fbff;}
+.chip.selected{border-color:var(--blue);background:var(--sky-soft);color:#0b4c8f;}
+.chip.selected::before{content:"✓";font-weight:900;color:var(--blue);}
+.chip.mark-ok{border-color:var(--ok);background:var(--ok-bg);color:#0b5b40;}
+.chip.mark-ok::before{content:"✓";font-weight:900;color:var(--ok);}
+.chip.mark-bad{border-color:var(--bad);background:var(--bad-bg);color:#8c1d17;}
+.chip.mark-bad::before{content:"✕";font-weight:900;color:var(--bad);}
+
+/* ---------- 想法卡 ---------- */
+.idea-list{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));}
+.idea{
+  background:#fff;border:2px solid var(--line);border-radius:16px;
+  padding:18px;min-height:66px;text-align:left;
+  font-size:18px;font-weight:700;color:var(--ink);
+  transition:border-color .12s ease,background .12s ease,box-shadow .12s ease;
+}
+.idea:hover{border-color:#9cc8ee;background:#f7fbff;}
+.idea.selected{border-color:var(--blue);background:var(--sky-soft);box-shadow:0 0 0 3px rgba(22,104,193,.15);}
+.idea.selected::before{content:"📌 ";}
+
+/* ---------- 說法卡 ---------- */
+.claim-grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));}
+.claim-card{background:#fff;border:2px solid var(--line);border-radius:18px;padding:18px;}
+.claim-tag{
+  display:inline-block;background:var(--navy);color:#fff;border-radius:999px;
+  padding:4px 16px;font-size:16px;font-weight:800;margin-bottom:10px;
+}
+.claim-card p{margin:0;font-size:19px;font-weight:700;color:#173e66;}
+
+/* ---------- 提示卡 ---------- */
+.question-card{
+  background:linear-gradient(160deg,#1e6fc4,#0d2b52);
+  color:#fff;border-radius:18px;padding:22px;
+  font-size:21px;font-weight:800;text-align:center;
+  box-shadow:0 8px 20px rgba(13,43,82,.20);
+}
+
+.feedback{
+  display:none;margin-top:18px;padding:16px 18px;border-radius:16px;
+  font-size:18px;line-height:1.7;
+}
+.feedback.show{display:block;animation:fade .25s ease;}
+.feedback.ok{background:var(--ok-bg);border:2px solid #9fdcc4;color:#0b5b40;}
+.feedback.warn{background:var(--warn-bg);border:2px solid #f0cf94;color:var(--warn);}
+.note-warn{color:#a33;font-weight:700;}
+
+.footer-row{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  flex-wrap:wrap;margin-top:26px;padding-top:18px;border-top:2px dashed #e2edf8;
+}
+
+/* ---------- 首頁 ---------- */
+.hero{text-align:center;padding:36px 10px 8px;}
+.hero h1{font-size:clamp(26px,4.2vw,40px);color:var(--navy);margin:10px 0;}
+.eyebrow{color:var(--blue);font-weight:800;letter-spacing:.06em;margin:0;font-size:17px;}
+.sub{color:var(--muted);font-size:19px;margin:6px 0 0;font-weight:600;}
+
+.home-grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));margin-top:30px;}
+.menu-card{
+  background:linear-gradient(160deg,#1e6fc4,#0d2b52);
+  color:#fff;border-radius:26px;padding:34px 26px;min-height:220px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  box-shadow:0 12px 30px rgba(13,43,82,.28);
+  transition:transform .15s ease,box-shadow .15s ease;
+}
+.menu-card:hover{transform:translateY(-4px);box-shadow:0 18px 38px rgba(13,43,82,.34);}
+.menu-card:active{transform:scale(.985);}
+.menu-icon{font-size:54px;line-height:1;}
+.menu-title{font-size:26px;font-weight:900;}
+.menu-desc{font-size:18px;font-weight:700;opacity:.88;}
+
+@media (max-width:640px){
+  .page{padding:14px 12px 60px;}
+  .card{padding:18px 16px;border-radius:18px;}
+  .card h2{font-size:20px;}
+  .menu-card{min-height:176px;padding:26px 18px;}
+  .menu-title{font-size:23px;}
+  .step-dot{font-size:15px;min-width:48px;}
+  .btn{padding:12px 20px;font-size:18px;}
+}
+</style>
+</head>
+<body>
+
+<!-- ======================= 首頁 ======================= -->
+<section class="page active" id="page-home">
+  <div class="hero">
+    <p class="eyebrow">小五常識 · 課堂互動</p>
+    <h1>空氣的特性・大氣壓力</h1>
+    <p class="sub">揀一個活動開始（兩個活動無先後次序）</p>
+  </div>
+  <div class="home-grid">
+    <button class="menu-card" type="button" onclick="go('cup')">
+      <span class="menu-icon" aria-hidden="true">🥛</span>
+      <span class="menu-title">① 覆杯實驗</span>
+      <span class="menu-desc">卡紙托水</span>
+    </button>
+    <button class="menu-card" type="button" onclick="go('box')">
+      <span class="menu-icon" aria-hidden="true">🧃</span>
+      <span class="menu-title">② 紙盒飲品凹陷</span>
+      <span class="menu-desc">飲管同大氣壓力</span>
+    </button>
+  </div>
+  <p class="footnote">全程只用點選，唔需要打字。</p>
+</section>
+
+<!-- ======================= 覆杯實驗 ======================= -->
+<section class="page" id="page-cup">
+  <div class="topbar">
+    <button class="btn ghost" type="button" id="cup-back">← 返回首頁</button>
+    <h1>覆杯實驗（卡紙托水）</h1>
+    <button class="btn ghost" type="button" id="cup-reset">重設</button>
+  </div>
+
+  <div class="steps" id="cup-dots">
+    <div class="step-dot on" data-step="1">1 預測</div>
+    <div class="step-dot" data-step="2">2 追問</div>
+    <div class="step-dot" data-step="3">3 觀察</div>
+    <div class="step-dot" data-step="4">4 說法</div>
+    <div class="step-dot" data-step="5">5 出口票</div>
+  </div>
+
+  <div id="cup-steps">
+
+    <!-- 步驟 1：預測 -->
+    <div class="card step active" data-step="1">
+      <h2>① 先預測：倒轉杯之後，卡紙會點？</h2>
+      <p class="lead">杯裝滿水，用卡紙蓋住杯口，然後倒轉。你估會發生咩事？</p>
+      <div class="option-list" id="cup-predict">
+        <button class="opt" type="button" data-val="A">A. 卡紙會掉下，水會流出</button>
+        <button class="opt" type="button" data-val="B">B. 卡紙會托住，水唔會流出</button>
+        <button class="opt" type="button" data-val="C">C. 唔確定，要試過先知</button>
+      </div>
+
+      <h3>你點解會咁估？（可以揀多個）</h3>
+      <div class="chip-list" id="cup-reasons">
+        <button class="chip" type="button" data-val="r1">卡紙太薄，頂唔住水</button>
+        <button class="chip" type="button" data-val="r2">水有重量，會壓住卡紙</button>
+        <button class="chip" type="button" data-val="r3">杯外有空氣，可能有嘢頂住</button>
+        <button class="chip" type="button" data-val="r4">杯內變成真空，會吸住卡紙</button>
+        <button class="chip" type="button" data-val="r5">純粹靠感覺，講唔出原因</button>
+      </div>
+
+      <div class="footer-row">
+        <span class="hint" id="cup-hint1">請先揀一個預測。</span>
+        <button class="btn primary" type="button" id="cup-next1" disabled>下一步 →</button>
+      </div>
+    </div>
+
+    <!-- 步驟 2：追問卡 -->
+    <div class="card step" data-step="2">
+      <h2>② 追問卡</h2>
+      <div class="question-card" id="cup-probe">（請先完成預測）</div>
+      <h3>點一點你嘅想法卡：</h3>
+      <div class="idea-list" id="cup-ideas"></div>
+      <div class="feedback" id="cup-idea-fb"></div>
+      <div class="footer-row">
+        <span class="hint">揀一張想法卡，再按「下一步」去做實驗。</span>
+        <button class="btn primary" type="button" id="cup-next2" disabled>下一步 →</button>
+      </div>
+    </div>
+
+    <!-- 步驟 3：觀察 -->
+    <div class="card step" data-step="3">
+      <h2>③ 實驗後觀察：你見到啲咩？</h2>
+      <p class="lead">睇完老師做實驗之後，把見到嘅現象打勾（可以揀多個）。</p>
+      <div class="chip-list" id="cup-obs">
+        <button class="chip" type="button" data-val="o1">卡紙冇掉下，托住咗杯入面嘅水</button>
+        <button class="chip" type="button" data-val="o2">杯口同卡紙貼得好實，冇氣泡走入</button>
+        <button class="chip" type="button" data-val="o3">倒轉杯嗰陣，有水漏出來</button>
+        <button class="chip" type="button" data-val="o4">杯內水面同杯口之間有少少空隙</button>
+        <button class="chip" type="button" data-val="o5">卡紙濕咗，但冇跌</button>
+      </div>
+      <div class="footer-row">
+        <span class="hint">最少揀一項觀察。</span>
+        <button class="btn primary" type="button" id="cup-next3" disabled>下一步 →</button>
+      </div>
+    </div>
+
+    <!-- 步驟 4：說法卡 -->
+    <div class="card step" data-step="4">
+      <h2>④ 兩個說法，邊個正確？</h2>
+      <div class="claim-grid">
+        <div class="claim-card">
+          <div class="claim-tag">說法 A</div>
+          <p>係杯內的水把卡紙吸住，所以水唔會流出。</p>
+        </div>
+        <div class="claim-card">
+          <div class="claim-tag">說法 B</div>
+          <p>係杯外的大氣壓力向上托住卡紙，所以水唔會流出。</p>
+        </div>
+      </div>
+
+      <h3>你的判斷（單選）</h3>
+      <div class="option-list" id="cup-judge">
+        <button class="opt" type="button" data-val="A">說法 A 正確</button>
+        <button class="opt" type="button" data-val="B">說法 B 正確</button>
+        <button class="opt" type="button" data-val="C">兩個都正確</button>
+      </div>
+
+      <h3>邊啲係支持你判斷嘅證據？（可以揀多個）</h3>
+      <div class="chip-list" id="cup-evidence">
+        <button class="chip" type="button" data-val="e1" data-ok="1">杯外有空氣，空氣有重量，會由下向上壓住卡紙</button>
+        <button class="chip" type="button" data-val="e2" data-ok="1">杯內水面同卡紙之間幾乎冇空氣，杯內壓力好細</button>
+        <button class="chip" type="button" data-val="e3" data-ok="0">水會「吸」住卡紙</button>
+        <button class="chip" type="button" data-val="e4" data-ok="1">如果俾空氣走入杯內，卡紙就會掉下</button>
+        <button class="chip" type="button" data-val="e5" data-ok="0">卡紙本身有黏力</button>
+      </div>
+
+      <div class="footer-row">
+        <span class="hint">揀好判斷同證據，再按「檢查答案」。</span>
+        <button class="btn primary" type="button" id="cup-check" disabled>檢查答案</button>
+      </div>
+
+      <div class="feedback" id="cup-fb4"></div>
+
+      <div class="footer-row" id="cup-goto5-row">
+        <span class="hint">睇完回饋，就去出口票。</span>
+        <button class="btn primary" type="button" id="cup-goto5" style="display:none">去出口票 →</button>
+      </div>
+    </div>
+
+    <!-- 步驟 5：出口票 -->
+    <div class="card step" data-step="5">
+      <h2>⑤ 出口票：今日嘅結論</h2>
+      <p class="lead">揀出最正確嘅一句。</p>
+      <div class="option-list" id="cup-exit">
+        <button class="opt" type="button" data-val="1">杯外的大氣壓力向上托住卡紙，所以水唔會流出。</button>
+        <button class="opt" type="button" data-val="0">杯內的水把卡紙吸住，所以水唔會流出。</button>
+        <button class="opt" type="button" data-val="0">卡紙太輕，所以自然唔會掉下。</button>
+      </div>
+
+      <h3>我還想知（可以唔揀）</h3>
+      <div class="chip-list" id="cup-want">
+        <button class="chip" type="button" data-val="w1">點解杯口要平滑？</button>
+        <button class="chip" type="button" data-val="w2">如果杯內有空氣會點？</button>
+        <button class="chip" type="button" data-val="w3">水幾重都托得住？</button>
+        <button class="chip" type="button" data-val="w4">太空有冇大氣壓力？</button>
+      </div>
+
+      <div class="feedback" id="cup-exit-fb"></div>
+
+      <div class="footer-row">
+        <span class="hint">揀好結論就可以完成。</span>
+        <button class="btn primary" type="button" id="cup-done" disabled>完成，返回首頁</button>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ======================= 紙盒飲品凹陷 ======================= -->
+<section class="page" id="page-box">
+  <div class="topbar">
+    <button class="btn ghost" type="button" id="box-back">← 返回首頁</button>
+    <h1>紙盒飲品凹陷</h1>
+    <button class="btn ghost" type="button" id="box-reset">重設</button>
+  </div>
+
+  <div class="steps" id="box-dots">
+    <div class="step-dot on" data-step="1">1 預測</div>
+    <div class="step-dot" data-step="2">2 觀察</div>
+    <div class="step-dot" data-step="3">3 說法</div>
+    <div class="step-dot" data-step="4">4 出口票</div>
+  </div>
+
+  <div id="box-steps">
+
+    <!-- 步驟 1 -->
+    <div class="card step active" data-step="1">
+      <h2>① 預測：用飲管飲紙盒飲品，紙盒會點？</h2>
+      <p class="lead">一路用飲管飲，一路飲，你估紙盒會發生咩事？</p>
+      <div class="option-list" id="box-predict">
+        <button class="opt" type="button" data-val="A">A. 紙盒會凹入去</button>
+        <button class="opt" type="button" data-val="B">B. 紙盒會脹大</button>
+        <button class="opt" type="button" data-val="C">C. 冇明顯變化</button>
+      </div>
+      <div class="footer-row">
+        <span class="hint">揀好就可以按「下一步」。</span>
+        <button class="btn primary" type="button" id="box-next1" disabled>下一步 →</button>
+      </div>
+    </div>
+
+    <!-- 步驟 2 -->
+    <div class="card step" data-step="2">
+      <h2>② 觀察：你見到啲咩？</h2>
+      <p class="lead">睇完老師做實驗之後，把見到嘅現象打勾（可以揀多個）。</p>
+      <div class="chip-list" id="box-obs">
+        <button class="chip" type="button" data-val="b1">紙盒側面凹咗入去</button>
+        <button class="chip" type="button" data-val="b2">飲管入面嘅飲品被吸走</button>
+        <button class="chip" type="button" data-val="b3">紙盒冇爆開</button>
+        <button class="chip" type="button" data-val="b4">紙盒外面冇嘢壓住佢</button>
+      </div>
+      <div class="footer-row">
+        <span class="hint">最少揀一項觀察。</span>
+        <button class="btn primary" type="button" id="box-next2" disabled>下一步 →</button>
+      </div>
+    </div>
+
+    <!-- 步驟 3 -->
+    <div class="card step" data-step="3">
+      <h2>③ 兩個說法，邊個正確？</h2>
+      <div class="claim-grid">
+        <div class="claim-card">
+          <div class="claim-tag">說法 A</div>
+          <p>係飲管把紙盒吸扁。</p>
+        </div>
+        <div class="claim-card">
+          <div class="claim-tag">說法 B</div>
+          <p>係外面的大氣壓力把紙盒壓凹。</p>
+        </div>
+      </div>
+
+      <h3>你的判斷（單選）</h3>
+      <div class="option-list" id="box-judge">
+        <button class="opt" type="button" data-val="A">說法 A 正確</button>
+        <button class="opt" type="button" data-val="B">說法 B 正確</button>
+        <button class="opt" type="button" data-val="C">兩個都正確</button>
+      </div>
+
+      <div class="footer-row">
+        <span class="hint">揀好判斷，再按「檢查答案」。</span>
+        <button class="btn primary" type="button" id="box-check" disabled>檢查答案</button>
+      </div>
+
+      <div class="feedback" id="box-fb3"></div>
+
+      <div class="footer-row">
+        <span class="hint">睇完回饋，就去出口票。</span>
+        <button class="btn primary" type="button" id="box-goto4" style="display:none">去出口票 →</button>
+      </div>
+    </div>
+
+    <!-- 步驟 4 -->
+    <div class="card step" data-step="4">
+      <h2>④ 出口票：今日嘅結論</h2>
+      <p class="lead">揀出最正確嘅一句。</p>
+      <div class="option-list" id="box-exit">
+        <button class="opt" type="button" data-val="1">外面的大氣壓力把紙盒壓凹，所以紙盒會凹入去。</button>
+        <button class="opt" type="button" data-val="0">係飲管把紙盒吸扁。</button>
+        <button class="opt" type="button" data-val="0">紙盒自己變形，同空氣無關。</button>
+      </div>
+
+      <h3>我還想知（可以唔揀）</h3>
+      <div class="chip-list" id="box-want">
+        <button class="chip" type="button" data-val="x1">點解用飲管飲會容易啲凹？</button>
+        <button class="chip" type="button" data-val="x2">如果用厚啲嘅紙盒會點？</button>
+        <button class="chip" type="button" data-val="x3">大氣壓力到底有幾大？</button>
+      </div>
+
+      <div class="feedback" id="box-exit-fb"></div>
+
+      <div class="footer-row">
+        <span class="hint">揀好結論就可以完成。</span>
+        <button class="btn primary" type="button" id="box-done" disabled>完成，返回首頁</button>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<script>
+/* ================= 共用工具 ================= */
+function $(id){ return document.getElementById(id); }
+function all(sel, root){
+  return Array.prototype.slice.call((root || document).querySelectorAll(sel));
+}
+
+function go(page){
+  all('.page').forEach(function(p){ p.classList.remove('active'); });
+  var el = $('page-' + page);
+  if(el){ el.classList.add('active'); }
+  window.scrollTo(0,0);
+}
+
+function showStep(prefix, n){
+  all('#' + prefix + '-steps .step').forEach(function(s){
+    s.classList.toggle('active', Number(s.dataset.step) === n);
+  });
+  all('#' + prefix + '-dots .step-dot').forEach(function(d){
+    var k = Number(d.dataset.step);
+    d.classList.toggle('on', k === n);
+    d.classList.toggle('done', k < n);
+  });
+  window.scrollTo(0,0);
+}
+
+function bindSingle(id, cb){
+  var box = $(id);
+  if(!box) return;
+  box.addEventListener('click', function(e){
+    var b = e.target.closest('.opt');
+    if(!b || !box.contains(b)) return;
+    all('.opt', box).forEach(function(x){ x.classList.remove('selected'); });
+    b.classList.add('selected');
+    if(cb){ cb(b.dataset.val, b); }
+  });
+}
+
+function bindMulti(id, cb){
+  var box = $(id);
+  if(!box) return;
+  box.addEventListener('click', function(e){
+    var b = e.target.closest('.chip');
+    if(!b || !box.contains(b)) return;
+    b.classList.toggle('selected');
+    if(cb){ cb(b.dataset.val, b); }
+  });
+}
+
+function getSelected(id){
+  var box = $(id);
+  if(!box) return [];
+  return all('.chip.selected, .opt.selected', box).map(function(el){ return el.dataset.val; });
+}
+
+/* ================= 覆杯實驗 ================= */
+var cup = { predict:null, judge:null, exit:null, checked:false, done:false };
+
+var CUP_PROBE = {
+  A: { q:'你覺得係咩令卡紙掉下？', ideas:['水太重，卡紙頂唔住','杯外嘅空氣冇力頂住','卡紙濕咗會變軟'] },
+  B: { q:'你猜係咩托住卡紙？', ideas:['杯外嘅空氣由下向上頂住','杯內嘅水吸住卡紙','杯口同卡紙貼得好實'] },
+  C: { q:'你最想知邊樣？', ideas:['卡紙到底會唔會掉下','究竟係咩托住卡紙','水會唔會流出來'] }
+};
+
+function initCup(){
+  bindSingle('cup-predict', function(v){
+    cup.predict = v;
+    $('cup-hint1').textContent = '已記錄你嘅預測，可以按「下一步」。';
+    $('cup-next1').disabled = false;
+  });
+  bindMulti('cup-reasons');
+  bindMulti('cup-obs', function(){
+    $('cup-next3').disabled = (getSelected('cup-obs').length === 0);
+  });
+  bindSingle('cup-judge', function(v){
+    cup.judge = v;
+    $('cup-check').disabled = false;
+  });
+  bindMulti('cup-evidence', function(){
+    if(cup.checked){ markCupEvidence(); }
+  });
+  bindSingle('cup-exit', function(v){
+    cup.exit = v;
+    $('cup-done').disabled = false;
+    var fb = $('cup-exit-fb');
+    fb.className = 'feedback';
+    fb.innerHTML = '';
+  });
+  bindMulti('cup-want');
+
+  $('cup-next1').addEventListener('click', cupToStep2);
+  $('cup-next2').addEventListener('click', function(){ showStep('cup',3); });
+  $('cup-next3').addEventListener('click', function(){ showStep('cup',4); });
+  $('cup-check').addEventListener('click', cupCheck);
+  $('cup-goto5').addEventListener('click', function(){ showStep('cup',5); });
+  $('cup-done').addEventListener('click', cupFinish);
+  $('cup-back').addEventListener('click', function(){ go('home'); });
+  $('cup-reset').addEventListener('click', resetCup);
+}
+
+function cupToStep2(){
+  var p = CUP_PROBE[cup.predict] || CUP_PROBE.C;
+  $('cup-probe').textContent = p.q;
+  var list = $('cup-ideas');
+  list.innerHTML = '';
+  p.ideas.forEach(function(txt){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'idea';
+    b.textContent = txt;
+    b.addEventListener('click', function(){
+      all('.idea', list).forEach(function(x){ x.classList.remove('selected'); });
+      b.classList.add('selected');
+      var fb = $('cup-idea-fb');
+      fb.className = 'feedback show ok';
+      fb.innerHTML = '📌 已記低你嘅想法卡：<b>' + txt + '</b><br>做完實驗之後，我哋再返嚟對一對。';
+      $('cup-next2').disabled = false;
+    });
+    list.appendChild(b);
+  });
+  var fb = $('cup-idea-fb');
+  fb.className = 'feedback';
+  fb.innerHTML = '';
+  $('cup-next2').disabled = true;
+  showStep('cup',2);
+}
+
+function markCupEvidence(){
+  all('#cup-evidence .chip').forEach(function(c){
+    c.classList.remove('mark-ok','mark-bad');
+    if(c.classList.contains('selected')){
+      c.classList.add(c.dataset.ok === '1' ? 'mark-ok' : 'mark-bad');
+    }
+  });
+}
+
+function cupCheck(){
+  cup.checked = true;
+  markCupEvidence();
+
+  var badCount = all('#cup-evidence .chip.mark-bad').length;
+  var goodCount = all('#cup-evidence .chip.mark-ok').length;
+  var html = '';
+
+  if(cup.judge === 'B'){
+    html += '<b>✅ 答得好！</b>正確答案係 <b>說法 B</b>。<br>';
+    html += '杯外嘅空氣有重量，形成<b>大氣壓力</b>，由下向上托住卡紙；杯內水面同卡紙之間幾乎冇空氣，壓力好細，所以水就唔會流出。';
+  }else{
+    html += '<b>🤔 再想一想。</b><br>';
+    html += '「係杯內的水把卡紙吸住」係一個常見嘅<b>迷思講法</b>（說法 A），水唔會「吸」住卡紙。<br>';
+    html += '真正嘅原因係 <b>說法 B</b>：杯外的大氣壓力向上托住卡紙。杯內幾乎冇空氣，壓力好細，外面嘅大氣壓力就能夠托住卡紙同水。';
+  }
+
+  if(badCount > 0){
+    html += '<br><span class="note-warn">⚠ 你揀咗嘅證據有 ✕ 嘅部分，嗰啲係迷思講法，唔係證據。</span>';
+  }else if(cup.judge === 'B' && goodCount > 0){
+    html += '<br>👍 你揀嘅證據都係正確嘅。';
+  }
+
+  var fb = $('cup-fb4');
+  fb.className = 'feedback show ' + (cup.judge === 'B' ? 'ok' : 'warn');
+  fb.innerHTML = html;
+
+  $('cup-goto5').style.display = 'inline-flex';
+}
+
+function cupFinish(){
+  if(cup.done){ go('home'); return; }
+  var fb = $('cup-exit-fb');
+  if(cup.exit !== '1'){
+    fb.className = 'feedback show warn';
+    fb.innerHTML = '🤔 再諗一次：水唔會「吸」住卡紙。請再揀出口票嘅結論。';
+    return;
+  }
+  fb.className = 'feedback show ok';
+  fb.innerHTML = '<b>✅ 完成！</b>你嘅結論係：<b>杯外的大氣壓力向上托住卡紙，所以水唔會流出。</b><br>做得好，可以返首頁做另一個活動。';
+  cup.done = true;
+  $('cup-done').textContent = '返回首頁';
+}
+
+function resetCup(){
+  cup = { predict:null, judge:null, exit:null, checked:false, done:false };
+  all('#page-cup .opt, #page-cup .chip, #page-cup .idea').forEach(function(el){
+    el.classList.remove('selected','mark-ok','mark-bad');
+  });
+  $('cup-ideas').innerHTML = '';
+  $('cup-probe').textContent = '（請先完成預測）';
+  $('cup-hint1').textContent = '請先揀一個預測。';
+  $('cup-next1').disabled = true;
+  $('cup-next2').disabled = true;
+  $('cup-next3').disabled = true;
+  $('cup-check').disabled = true;
+  $('cup-goto5').style.display = 'none';
+  $('cup-done').disabled = true;
+  $('cup-done').textContent = '完成，返回首頁';
+  ['cup-idea-fb','cup-fb4','cup-exit-fb'].forEach(function(id){
+    var el = $(id);
+    el.className = 'feedback';
+    el.innerHTML = '';
+  });
+  showStep('cup',1);
+}
+
+/* ================= 紙盒飲品凹陷 ================= */
+var box = { predict:null, judge:null, exit:null, done:false };
+
+function initBox(){
+  bindSingle('box-predict', function(v){
+    box.predict = v;
+    $('box-next1').disabled = false;
+  });
+  bindMulti('box-obs', function(){
+    $('box-next2').disabled = (getSelected('box-obs').length === 0);
+  });
+  bindSingle('box-judge', function(v){
+    box.judge = v;
+    $('box-check').disabled = false;
+  });
+  bindSingle('box-exit', function(v){
+    box.exit = v;
+    $('box-done').disabled = false;
+    var fb = $('box-exit-fb');
+    fb.className = 'feedback';
+    fb.innerHTML = '';
+  });
+  bindMulti('box-want');
+
+  $('box-next1').addEventListener('click', function(){ showStep('box',2); });
+  $('box-next2').addEventListener('click', function(){ showStep('box',3); });
+  $('box-check').addEventListener('click', boxCheck);
+  $('box-goto4').addEventListener('click', function(){ showStep('box',4); });
+  $('box-done').addEventListener('click', boxFinish);
+  $('box-back').addEventListener('click', function(){ go('home'); });
+  $('box-reset').addEventListener('click', resetBox);
+}
+
+function boxCheck(){
+  var fb = $('box-fb3');
+  if(box.judge === 'B'){
+    fb.className = 'feedback show ok';
+    fb.innerHTML = '<b>✅ 答得好！</b>正確答案係 <b>說法 B</b>。<br>' +
+      '我哋用飲管吸走紙盒入面嘅飲品，紙盒入面嘅空氣同液體減少，壓力變細；外面嘅<b>大氣壓力</b>大過裏面，就把紙盒壓凹。' +
+      '飲管只係負責把飲品吸走，唔係「吸扁」紙盒嘅力。';
+  }else{
+    fb.className = 'feedback show warn';
+    fb.innerHTML = '<b>🤔 再想一想。</b><br>' +
+      '「係飲管把紙盒吸扁」係一個常見嘅<b>迷思講法</b>（說法 A）。<br>' +
+      '真正嘅原因係 <b>說法 B</b>：用飲管飲嘢之後，紙盒內嘅壓力變細，外面嘅<b>大氣壓力</b>大過裏面，就把紙盒壓凹。';
+  }
+  $('box-goto4').style.display = 'inline-flex';
+}
+
+function boxFinish(){
+  if(box.done){ go('home'); return; }
+  var fb = $('box-exit-fb');
+  if(box.exit !== '1'){
+    fb.className = 'feedback show warn';
+    fb.innerHTML = '🤔 再諗一次：係外面嘅大氣壓力把紙盒壓凹，唔係飲管「吸扁」紙盒。請再揀一次。';
+    return;
+  }
+  fb.className = 'feedback show ok';
+  fb.innerHTML = '<b>✅ 完成！</b>你嘅結論係：<b>外面的大氣壓力把紙盒壓凹。</b><br>做得好，可以返首頁做另一個活動。';
+  box.done = true;
+  $('box-done').textContent = '返回首頁';
+}
+
+function resetBox(){
+  box = { predict:null, judge:null, exit:null, done:false };
+  all('#page-box .opt, #page-box .chip').forEach(function(el){
+    el.classList.remove('selected','mark-ok','mark-bad');
+  });
+  $('box-next1').disabled = true;
+  $('box-next2').disabled = true;
+  $('box-check').disabled = true;
+  $('box-goto4').style.display = 'none';
+  $('box-done').disabled = true;
+  $('box-done').textContent = '完成，返回首頁';
+  ['box-fb3','box-exit-fb'].forEach(function(id){
+    var el = $(id);
+    el.className = 'feedback';
+    el.innerHTML = '';
+  });
+  showStep('box',1);
+}
+
+/* ================= 啟動 ================= */
+initCup();
+initBox();
+</script>
+</body>
+</html>
