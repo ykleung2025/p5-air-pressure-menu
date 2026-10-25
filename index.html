@@ -334,7 +334,7 @@ button{font-family:inherit;font-size:18px;cursor:pointer;border:none;background:
       </div>
 
       <div class="footer-row">
-        <span class="hint">揀好判斷同證據，再按「檢查答案」。</span>
+        <span class="hint">一定要揀判斷，同最少一項證據（可以錯），先可以檢查。</span>
         <button class="btn primary" type="button" id="cup-check" disabled>檢查答案</button>
       </div>
 
@@ -470,7 +470,7 @@ button{font-family:inherit;font-size:18px;cursor:pointer;border:none;background:
       </div>
 
       <div class="footer-row">
-        <span class="hint">揀好判斷同證據，再按「檢查答案」。</span>
+        <span class="hint">一定要揀判斷，同最少一項證據（可以錯），先可以檢查。</span>
         <button class="btn primary" type="button" id="box-check" disabled>檢查答案</button>
       </div>
 
@@ -647,6 +647,37 @@ function updateExitReady(prefix){
   if(hint) hint.textContent = '追問同結論都揀好，可以完成。';
 }
 
+
+function updateClaimCheckReady(prefix){
+  var st = prefix === 'cup' ? cup : box;
+  var btn = $(prefix === 'cup' ? 'cup-check' : 'box-check');
+  if(!btn) return;
+  var evidId = prefix === 'cup' ? 'cup-evidence' : 'box-evidence';
+  var hasEvid = getSelected(evidId).length > 0;
+  btn.disabled = !(st.judge && hasEvid);
+}
+
+function correctClaimReason(prefix){
+  if(prefix === 'cup'){
+    return {
+      claim: '說法 B：係杯外的大氣壓力向上托住卡紙，所以水唔會流出。',
+      reason: '杯外空氣有重量，形成大氣壓力，由下向上托住卡紙；杯內水面同卡紙之間幾乎冇空氣，壓力好細。水唔會「吸」住卡紙。'
+    };
+  }
+  return {
+    claim: '說法 B：係外面的大氣壓力把紙盒壓凹。',
+    reason: '密封時吸走飲品，盒內空氣／液體減少，盒內氣壓下降；盒外大氣壓力冇變，由外向內把紙盒壓凹。唔係飲管「吸扁」紙盒。'
+  };
+}
+
+function guideExitFeedback(prefix, choseCorrect){
+  var tip = correctClaimReason(prefix);
+  if(choseCorrect){
+    return '<b>✅ 結論啱！</b><br>正確答案：<b>' + tip.claim + '</b><br>原因：' + tip.reason;
+  }
+  return '<b>📖 出口票指導</b><br>你啱先揀嘅結論未啱。正確答案係：<b>' + tip.claim + '</b><br>原因：' + tip.reason + '<br>請再揀一次「今日嘅結論」。';
+}
+
 function initCup(){
   bindSingle('cup-predict', function(v){
     cup.predict = v;
@@ -659,9 +690,10 @@ function initCup(){
   });
   bindSingle('cup-judge', function(v){
     cup.judge = v;
-    $('cup-check').disabled = false;
+    updateClaimCheckReady('cup');
   });
   bindMulti('cup-evidence', function(){
+    updateClaimCheckReady('cup');
     if(cup.checked){ markCupEvidence(); }
   });
   bindSingle('cup-reflect', function(v){
@@ -674,8 +706,9 @@ function initCup(){
   bindSingle('cup-exit', function(v){
     cup.exit = v;
     var fb = $('cup-exit-fb');
-    fb.className = 'feedback';
-    fb.innerHTML = '';
+    var ok = (v === '1');
+    fb.className = 'feedback show ' + (ok ? 'ok' : 'warn');
+    fb.innerHTML = guideExitFeedback('cup', ok);
     updateExitReady('cup');
   });
   bindMulti('cup-want');
@@ -728,30 +761,37 @@ function markCupEvidence(){
 }
 
 function cupCheck(){
+  if(!cup.judge || getSelected('cup-evidence').length === 0){
+    var early = $('cup-fb4');
+    early.className = 'feedback show warn';
+    early.innerHTML = '請先揀判斷，同最少一項證據（可以錯），再檢查。';
+    return;
+  }
   cup.checked = true;
   markCupEvidence();
 
   var badCount = all('#cup-evidence .chip.mark-bad').length;
   var goodCount = all('#cup-evidence .chip.mark-ok').length;
+  var tip = correctClaimReason('cup');
   var html = '';
 
   if(cup.judge === 'B'){
-    html += '<b>✅ 答得好！</b>正確答案係 <b>說法 B</b>。<br>';
-    html += '杯外嘅空氣有重量，形成<b>大氣壓力</b>，由下向上托住卡紙；杯內水面同卡紙之間幾乎冇空氣，壓力好細，所以水就唔會流出。';
+    html += '<b>✅ 判斷啱！</b>正確答案係 <b>說法 B</b>。<br>';
   }else{
-    html += '<b>🤔 再想一想。</b><br>';
-    html += '「係杯內的水把卡紙吸住」係一個常見嘅<b>迷思講法</b>（說法 A），水唔會「吸」住卡紙。<br>';
-    html += '真正嘅原因係 <b>說法 B</b>：杯外的大氣壓力向上托住卡紙。杯內幾乎冇空氣，壓力好細，外面嘅大氣壓力就能夠托住卡紙同水。';
+    html += '<b>🤔 判斷未啱，唔緊要。</b>「水吸住卡紙」係迷思講法。<br>';
   }
+  html += '正確答案：<b>' + tip.claim + '</b><br>原因：' + tip.reason;
 
-  if(badCount > 0){
-    html += '<br><span class="note-warn">⚠ 你揀咗嘅證據有 ✕ 嘅部分，嗰啲係迷思講法，唔係證據。</span>';
-  }else if(cup.judge === 'B' && goodCount > 0){
+  if(goodCount === 0){
+    html += '<br><span class="note-warn">⚠ 你未揀到正確證據。出口票會再指導你睇正確答案同原因。</span>';
+  }else if(badCount > 0){
+    html += '<br><span class="note-warn">⚠ 你有揀到正確證據，但亦揀咗 ✕ 迷思講法；出口票會再幫你對齊。</span>';
+  }else{
     html += '<br>👍 你揀嘅證據都係正確嘅。';
   }
 
   var fb = $('cup-fb4');
-  fb.className = 'feedback show ' + (cup.judge === 'B' ? 'ok' : 'warn');
+  fb.className = 'feedback show ' + (cup.judge === 'B' && badCount === 0 && goodCount > 0 ? 'ok' : 'warn');
   fb.innerHTML = html;
 
   $('cup-goto5').style.display = 'inline-flex';
@@ -773,11 +813,11 @@ function cupFinish(){
   var fb = $('cup-exit-fb');
   if(cup.exit !== '1'){
     fb.className = 'feedback show warn';
-    fb.innerHTML = '🤔 再諗一次：水唔會「吸」住卡紙。請再揀出口票嘅結論。';
+    fb.innerHTML = guideExitFeedback('cup', false);
     return;
   }
   fb.className = 'feedback show ok';
-  fb.innerHTML = '<b>✅ 完成！</b>你嘅結論係：<b>杯外的大氣壓力向上托住卡紙，所以水唔會流出。</b><br>做得好，可以返首頁做另一個活動。';
+  fb.innerHTML = '<b>✅ 完成！</b>' + guideExitFeedback('cup', true) + '<br>做得好，可以返首頁做另一個活動。';
   cup.done = true;
   $('cup-done').textContent = '返回首頁';
 }
@@ -820,9 +860,10 @@ function initBox(){
   });
   bindSingle('box-judge', function(v){
     box.judge = v;
-    $('box-check').disabled = false;
+    updateClaimCheckReady('box');
   });
   bindMulti('box-evidence', function(){
+    updateClaimCheckReady('box');
     if(box.checked){ markBoxEvidence(); }
   });
   bindSingle('box-reflect', function(v){
@@ -835,8 +876,9 @@ function initBox(){
   bindSingle('box-exit', function(v){
     box.exit = v;
     var fb = $('box-exit-fb');
-    fb.className = 'feedback';
-    fb.innerHTML = '';
+    var ok = (v === '1');
+    fb.className = 'feedback show ' + (ok ? 'ok' : 'warn');
+    fb.innerHTML = guideExitFeedback('box', ok);
     updateExitReady('box');
   });
   bindMulti('box-want');
@@ -860,31 +902,37 @@ function markBoxEvidence(){
 }
 
 function boxCheck(){
+  if(!box.judge || getSelected('box-evidence').length === 0){
+    var early = $('box-fb3');
+    early.className = 'feedback show warn';
+    early.innerHTML = '請先揀判斷，同最少一項證據（可以錯），再檢查。';
+    return;
+  }
   box.checked = true;
   markBoxEvidence();
 
   var badCount = all('#box-evidence .chip.mark-bad').length;
   var goodCount = all('#box-evidence .chip.mark-ok').length;
+  var tip = correctClaimReason('box');
   var html = '';
 
   if(box.judge === 'B'){
-    html += '<b>✅ 答得好！</b>正確答案係 <b>說法 B</b>。<br>';
-    html += '我哋用飲管吸走紙盒入面嘅飲品，紙盒入面嘅空氣同液體減少，壓力變細；外面嘅<b>大氣壓力</b>大過裏面，就把紙盒壓凹。';
-    html += '飲管只係負責把飲品吸走，唔係「吸扁」紙盒嘅力。';
+    html += '<b>✅ 判斷啱！</b>正確答案係 <b>說法 B</b>。<br>';
   }else{
-    html += '<b>🤔 再想一想。</b><br>';
-    html += '「係飲管把紙盒吸扁」係一個常見嘅<b>迷思講法</b>（說法 A）。<br>';
-    html += '真正嘅原因係 <b>說法 B</b>：用飲管飲嘢之後，紙盒內嘅壓力變細，外面嘅<b>大氣壓力</b>大過裏面，就把紙盒壓凹。';
+    html += '<b>🤔 判斷未啱，唔緊要。</b>「飲管吸扁紙盒」係迷思講法。<br>';
   }
+  html += '正確答案：<b>' + tip.claim + '</b><br>原因：' + tip.reason;
 
-  if(badCount > 0){
-    html += '<br><span class="note-warn">⚠ 你揀咗嘅證據有 ✕ 嘅部分，嗰啲係迷思講法，唔係證據。</span>';
-  }else if(box.judge === 'B' && goodCount > 0){
+  if(goodCount === 0){
+    html += '<br><span class="note-warn">⚠ 你未揀到正確證據。出口票會再指導你睇正確答案同原因。</span>';
+  }else if(badCount > 0){
+    html += '<br><span class="note-warn">⚠ 你有揀到正確證據，但亦揀咗 ✕ 迷思講法；出口票會再幫你對齊。</span>';
+  }else{
     html += '<br>👍 你揀嘅證據都係正確嘅。';
   }
 
   var fb = $('box-fb3');
-  fb.className = 'feedback show ' + (box.judge === 'B' ? 'ok' : 'warn');
+  fb.className = 'feedback show ' + (box.judge === 'B' && badCount === 0 && goodCount > 0 ? 'ok' : 'warn');
   fb.innerHTML = html;
 
   $('box-goto4').style.display = 'inline-flex';
@@ -901,11 +949,11 @@ function boxFinish(){
   var fb = $('box-exit-fb');
   if(box.exit !== '1'){
     fb.className = 'feedback show warn';
-    fb.innerHTML = '🤔 再諗一次：係外面嘅大氣壓力把紙盒壓凹，唔係飲管「吸扁」紙盒。請再揀一次。';
+    fb.innerHTML = guideExitFeedback('box', false);
     return;
   }
   fb.className = 'feedback show ok';
-  fb.innerHTML = '<b>✅ 完成！</b>你嘅結論係：<b>外面的大氣壓力把紙盒壓凹。</b><br>做得好，可以返首頁做另一個活動。';
+  fb.innerHTML = '<b>✅ 完成！</b>' + guideExitFeedback('box', true) + '<br>做得好，可以返首頁做另一個活動。';
   box.done = true;
   $('box-done').textContent = '返回首頁';
 }
